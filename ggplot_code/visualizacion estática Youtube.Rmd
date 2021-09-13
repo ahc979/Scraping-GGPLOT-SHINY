@@ -1,0 +1,492 @@
+---
+title: "Youtube"
+author: "Alvaro Herreruela"
+date: "19/3/2021"
+output: html_document
+---
+## INTRODUCCIÓN
+Todos conocemos la plataforma que durante años ha sido la más visitada por los usuarios en todo el mundo, Youtube. Desde esta plataforma los usuarios pueden subir, compartir, visualizar, valorar y comentar sus videos y los de otros usuarios. A día de hoy hay otra plataforma, conocida como Twitch, que está cogiendo mucho peso, haciendo que los usuarios de Youtube se muevan a esta otra. Twitch se centra mucho más en la reproducción de videos en streaming (en vivo) aunque también tienen un repositorio de videos donde los usuarios pueden acceder a los canales de sus streamers favoritos y verlos. 
+
+En este trabajo analizaremos la plataforma de Youtube a través de un análisis estático y la de Twitch a través de un análisis dinámico. Los datos de Youtube han sido recogidos a través de web scraping utilizando la Api de Youtube v3 que proporciona Google Cloud. Los datos de Twitch han sido recogidos a través de la Api de Twitch.
+
+Los paquetes extra que hay que instalar y que se instalan fácilmente desde el install.packages es cowplot, gtable y gridExtra. El resto de paquetes son ggplot2, data.table, tidyr y dplyr.
+
+## Distribución y Análisis exploratorio
+Para el análisis estático utilizaremos ggplot2. Los datos son los top videos de diferentes países (Canadá, Alemania, Francia, Gran Bretaña, Japón, Corea(la buena/Sur), Rusia, EEUU y España). Los datos han tenido que ser reordenados para poder fusionar todos los datasets en uno. La variables que se utilizarán son: el título del video, el título del canal, la fecha en la que es trending, la hora, el número de visualizaciones, el número de me gusta(likes), el número de no me gusta (dislikes), el número de comentarios y el país donde el vídeo es trending.
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(ggplot2)
+library(gtable)
+library(gridExtra)
+library(cowplot)
+```
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+
+canada_videos_original <- read.csv('21.17.03_CA_videos.csv', sep = ',', encoding = 'UTF-8')
+summary(canada_videos_original)
+canada_videos <- canada_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+canada_videos['country'] <- 'Canada'
+
+germany_videos_original <- read.csv('21.17.03_DE_videos.csv', sep = ',',encoding = 'UTF-8')
+germany_videos <- germany_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+germany_videos['country'] <- 'Germany'
+
+france_videos_original <- read.csv('21.17.03_FR_videos.csv', sep = ',',encoding = 'UTF-8')
+france_videos <- france_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+france_videos['country'] <- 'France'
+
+gb_videos_original <- read.csv('21.17.03_GB_videos.csv', sep = ',',encoding = 'UTF-8')
+gb_videos <- gb_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+gb_videos['country'] <- 'Great Britain'
+
+japan_videos_original <- read.csv('21.17.03_JP_videos.csv', sep = ',',encoding = 'UTF-8')
+japan_videos <- japan_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+japan_videos['country'] <- 'Japan'
+
+
+korea_videos_original <- read.csv('21.17.03_KR_videos.csv', sep = ',',encoding = 'UTF-8')
+korea_videos <- korea_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+korea_videos['country'] <- 'Korea'
+
+
+rusia_videos_original <- read.csv('21.17.03_RU_videos.csv', sep = ',',encoding = 'UTF-8')
+rusia_videos <- rusia_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+rusia_videos['country'] <- 'Rusia'
+
+us_videos_original <- read.csv('21.17.03_US_videos.csv', sep = ',',encoding = 'UTF-8')
+us_videos <- us_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+us_videos['country'] <- 'US'
+
+spain_videos_original <-  read.csv('21.17.03_ES_videos.csv', sep = ',',encoding = 'UTF-8')
+spain_videos <- spain_videos_original %>% select(title,channelTitle, publishedAt, view_count, likes, dislikes, comment_count)
+spain_videos['country'] <- 'Spain'
+
+youtube_stats<- rbindlist(list(canada_videos,germany_videos,france_videos, gb_videos,
+                               japan_videos,spain_videos,korea_videos,rusia_videos,us_videos))
+
+ord = function (df){
+  df$publishedAt <- gsub('Z','',df$publishedAt)
+  df <- separate(df, publishedAt,c('date','time'),sep = 'T')
+  return(df)}
+
+youtube_stats <- ord(youtube_stats)
+# youtube_stats$time <- gsub('.000','', youtube_stats$time)
+summary(youtube_stats)
+```
+
+
+Es importante conocer como se distribuyen nuestros países en función de nuestra variable principal que será el número de visualizaciones. Podemos encontrar Rusia como el país con mayor densidad (menor varianza) donde todos los valores se encuentran entre el 0 y 0.5 millones de visualizaciones. EEUU en cambio, tiene los datos más distribuidos (mayor varianza), donde la mayoria se encuentrar entre el 0 y el 2 millones de visualizaciones.
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(arrange(youtube_stats,youtube_stats$date), aes(view_count/1000000, fill=country)) + 
+  geom_density(alpha = 0.8)+
+   coord_cartesian(xlim = c(0,4))+
+  scale_fill_brewer(palette = "Set1", name = 'Country')+
+  theme(line =element_line(color = 'black'),
+        axis.title = element_text(size = rel(1.5)),
+        axis.text.x = element_text(vjust = 0.5, hjust=1),
+        panel.background = element_rect(fill='white'),
+        panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+        axis.line = element_line(colour = 'black'))+
+  labs(title='Density of Views per Country (In Millions)',
+       x ="Views", y = "Density")
+
+
+```
+
+Este conjunto de boxplots muestras información sobre la media y valores atípicos por países. Se puede observar que la mayoría de ellos tienen ouliers y que EEUU es el país con mayor media de visualizaciones mientras que Rusia y España son los que menos tienen.
+```{r, echo = FALSE, message=FALSE}
+ggplot(youtube_stats,aes(x= country,y= view_count/1000000))+ geom_boxplot(aes(fill = country))+
+   coord_cartesian(ylim = c(0,23))+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+  theme(line =element_line(color = 'black'),
+        axis.title = element_text(size = rel(1.5)),
+        axis.text.x = element_text(angle = 90,vjust = 0.5, hjust=1),
+        panel.background = element_rect(fill='white'),
+        panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+        axis.line = element_line(colour = 'black'))+
+  labs(title='Density of Views per Country (In Millions)',
+       x ="Country", y = "Views")
+```
+
+Por último, vamos a ver como se distribuye los likes con respecto a las visitas a través de un gráfico de puntos. Se puede observar que los datos se encuentran muy dispersos y no exsiste ninguna relación entre una variable y otra.
+
+```{r,echo=FALSE, warning=FALSE, message=FALSE}
+ggplot(youtube_stats,aes(x= view_count/100000,y= likes/100000,color = country))+ geom_point()+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+  coord_cartesian(xlim = c(0,40),ylim= c(0,2))+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+  theme(line =element_line(color = 'black'),
+        axis.title = element_text(size = rel(1.5)),
+        axis.text.x = element_text(vjust = 0.5, hjust=1),
+        panel.background = element_rect(fill='white'),
+        axis.line = element_line(colour = 'black'))+
+  labs(title='Views and Likes per Country (In Millions)',
+       x ="Views", y = "Likes")
+
+
+
+```
+
+
+## Impacto de las variables por países
+Vamos a empezar con un gráfico que representa las sumas totales de visitas por país. Podemos observar que el país que tiene mayor impacto sobre el número de visualizaciones es EEUU. En cambio, los usuarios en Rusia deben utilizar menos la plataforma ya que no generan casi impacto en el número de visualizaciones. En el segundo gráfico, se puede ver que el video con más reproducciones de cada país supera los 75 millones en todos los países menos Corea y Rusia. Además, en este segunda gráfico, el vídeo con más reproducciones dista mucho del valor de la media. Si hacemos un zoom al segundo gráfico(tercer gráfico) podemos ver que el valor real de la media está muy por debajo de lo que es el máximo dejando a EEUU con la media más alta (2,77 millones), seguido de Canadá, y Rusia con la media más baja (650 mil).
+
+```{r, echo = FALSE, warning=FALSE, message=FALSE}
+country_stats <-  group_by(youtube_stats,country) %>% summarise( sum_views = sum(view_count), 
+                                                                 mean_views = mean(view_count))
+views <- ggplot(country_stats) + geom_col(aes(x= reorder(country,+sum_views/1000000),y= sum_views/1000000)
+                    , fill = '#c4302b')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Number of Views per Country (In Millions)',
+                   x ="Country", y = "Views")
+
+country_stats <-  group_by(youtube_stats,country) %>% summarise( max_views = max(view_count), 
+                                                                 mean_views = mean(view_count))
+
+views_and_mean <- ggplot(country_stats) + geom_col(aes(x= reorder(country,+max_views/1000000),y= max_views/1000000)
+                    , fill = '#c4302b')+
+              geom_line(aes(x = country, y = mean_views/1000000,group = 1),color = 'black')+
+              geom_point(aes(x=country, y=mean_views/1000000),color='black')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Max of Views per Country (In Millions)',
+                   x ="Country", y = "Views")
+grid.arrange(views,views_and_mean,nrow = 1)
+
+ggplot(country_stats) + 
+              geom_line(aes(x = country, y = mean_views/1000000,group = 1),color = 'black')+
+              geom_point(aes(x=country, y=mean_views/1000000),color='black')+
+              theme_bw()+
+              geom_text(aes(x=country, y=mean_views/1000000, label =round(mean_views/1000000, digits=2) ),hjust=0, vjust=0)+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='#c4302b'),
+                    axis.line = element_line(colour = 'black'))+
+              scale_y_continuous(breaks = NULL)+
+              labs(title='Mean of Views per Country (In Millions)',
+                   x ="Country", y = "Views")
+
+```
+
+
+
+Podemos ver que los videos trending en Estados Unidos son los que más likes y dislikes tienen. Los que menos likes tienen en sus videos en cambio son Rusia y Korea pero se puede observar que el número de dislikes no sigue la misma tendendencia, ya que Rusia tiene prácticamente los mismos dislikes que Francia y son Korea y Japón los que menos dislikes tienen. Los comentarios, en cambio, siguen la misma tendencia que los likes, dejando a los países europeos en el centro del gráfico, los vídeos trending de los americanos tomando las primeras posiciones y los asiáticos en el mínimo.
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+## R Markdown
+country_stats <-  group_by(youtube_stats,country) %>% summarise( sum_likes = sum(likes), 
+                                                                 sum_dislikes = sum(dislikes),
+                                                                 sum_comments = sum(comment_count))
+
+likes <- ggplot(country_stats) + geom_col(aes(x= reorder(country,+sum_likes/1000000),y= sum_likes/1000000)
+                    , fill = '#c4302b')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Number of likes per Country (In Millions)',
+                   x ="Country", y = "Likes")
+
+dislikes <-  ggplot(country_stats) + geom_col(aes(x= reorder(country,+sum_dislikes/1000000),y= sum_dislikes/1000000)
+                    , fill = '#c4302b')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Number of dislikes per Country (In Millions)',
+                   x ="Country", y = "Dislikes")
+grid.arrange(likes,dislikes,nrow = 1)
+
+comments <- ggplot(country_stats) + geom_col(aes(x= reorder(country,+sum_comments/1000000),y= sum_comments/1000000)
+                    , fill = '#c4302b')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Number of comments per Country (In Millions)',
+                   x ="Country", y = "Comments")
+
+comments
+
+```
+
+## Canales y videos
+### Visitas
+En este primer gráfico podemos observar la hora del día que más visitas ha tenido un vídeo trending, en los diferentes países. Podemos observar, que el vídeo trending en todos los países menos en Korea y Rusia, se subio a las 5 de la madrugada y supera las 80 milones de visualizaciones. El vídeo trending es el mismo en estos países, aunque eso lo analizaremos más adelante.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>%  group_by(country,time) %>%  summarise(max_views = max(view_count)) %>% 
+filter(max_views == max(max_views))
+ggplot(country_stats) + geom_col(aes(x=max_views/1000000 ,y= reorder(time,+max_views/1000000), fill = country))+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.x = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Hour day with the maximum of views per country (In Millions)',
+                   x ="Views", y = "Time")
+ 
+```
+
+Este gráfico representa el canal del vídeo del anaterior apartado. Es decir, el canal del video con más visitas por país. Esto concluye con que el vídeo con más visitas en cada país es del canal BlackPink, menos en Rusia que es Dua Lipa. Ambos canales son musicales, donde BlackPink es un grupo de música surcoreano y Dua Lipa es una cantante británica.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% group_by(country,channelTitle) %>%  summarise(max_views = max(view_count)) %>% 
+filter(max_views == max(max_views))
+
+ ggplot(country_stats) + geom_col(aes(x= reorder(channelTitle,+max_views/10000000),y= max_views/10000000, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the maximum of views per country (In Millions)',
+                   x ="Channel", y = "Views")
+
+```
+
+
+Si graficamos los vídeos con menos visitas por país en una hora determinada, se puede ver como a diferencia del máximo, las franajas horarias fueron diferentes para los distintos países. 
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>%  group_by(country,time) %>%  summarise(min_views = min(view_count)) %>% 
+filter(min_views == min(min_views))
+
+ggplot(country_stats) + geom_col(aes(x=min_views/1000 ,y= reorder(time,+min_views/1000), fill = country))+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.x = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Hour day with the minimum of views per country (In Thousands)',
+                   x ="Views", y = "Time")
+```
+
+Los canales trending con el mínimo número de visitas por país son muy diversos. Podemos encontrar desde canales de televisión incorporados en Youtube (como es el caso de España), hasta canales dedicados a videojuegos (como es el caso de Canadá).
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% group_by(country,channelTitle) %>%  summarise(min_views = min(view_count)) %>% 
+filter(min_views == min(min_views))
+
+ ggplot(country_stats) + geom_col(aes(x= reorder(channelTitle,+min_views/1000),y= min_views/1000, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the minimum of views per country (In Thousands)',
+                   x ="Time", y = "Channel")
+```
+
+En este gráfico hemos representado los top 5 vídeos más vistos y sus canales. Podemos destacar que 4 de los 5 videos más vistos en España pertenecen a al categoría de música, mientras que un solo vídeo que en este caso pertenece al canal MrBeast, es de la categoria de entretenimiento. BlackPink tiene dos videos en el top 5, donde uno es el menos visto de los 5 y el otro (el video-clip de 'On the Ground') es el más visto.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% filter(country == 'Spain') %>% select(country,title,channelTitle,view_count) %>% 
+  arrange(desc(view_count)) %>% head(5)
+
+ ggplot(country_stats, aes(x=reorder(channelTitle,view_count/1000000), y=view_count/1000000)) + geom_point(size = 3)+
+              theme_bw()+
+              geom_text(aes(x=reorder(channelTitle,view_count/1000000), y=view_count/1000000, label = title ),angle= 60,hjust=0, vjust=0, size = 4)+
+   geom_segment(aes(x =channelTitle, xend=channelTitle, y=0, yend = view_count/1000000))+
+   theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Top 5 most view videos in Spain (In Millions)',
+                   x ="Channel", y = "Views")+
+   coord_cartesian(ylim = c(0,200), xlim=c(1,4.5))
+
+```
+
+
+### Likes
+Al igual que en las visitas, el canal con más likes es BlackPink, el cual es visto por todo los países menos Korea(sorprendentemente ya que BlackPink es un canal surcoreano) y Rusia. Coincide en que es el mismo video de BlackPink para todos los países y se trata del videclip 'On the ground'. Es curioso ver que el vídeo coreano de BlackPink, el cual es trending en todo el mundo, no lo es ya en Corea, ya que en Corea hay otro video trending con 2 millones de likes que pertenece a la banda BangTangTv, también surcoreana. Esto puede ser porque en Corea hace unos meses el video trending sería el de BlackPink, pero cuando ya se hace viral en el resto del mundo los coreanos ya han escuchado tantas veces la canción que prefieren buscar otros artistas. Porbablemente, en unos meses se haga trending en el resto del mundo, la canción que ahora es trending en Corea, la del grupo de BangTangTv(BTS).
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% group_by(country,channelTitle) %>%  summarise(max_likes = max(likes)) 
+country_stats$max_likes <- unlist(country_stats$max_likes)
+country_stats <- filter(country_stats,max_likes == max(max_likes))
+
+ ggplot(country_stats) + geom_col(aes(x= reorder(channelTitle,+max_likes/1000000),y= max_likes/1000000, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the maximum of Likes per country (In Million)',
+                   x ="Channel", y = "Likes")
+```
+
+
+Los videos con más likes en España son los mismos que lo que más visitas tenían, teniendo en cuenta que en este top 5 ha entrado también el grupo surcoreano BTS con uno de sus videoclips.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% filter(country == 'Spain') %>% select(country,title,channelTitle,likes) %>% 
+  arrange(desc(likes)) %>% head(5)
+
+ ggplot(country_stats, aes(x=reorder(channelTitle,likes/1000000), y=likes/1000000)) + geom_point(size = 3)+
+              theme_bw()+
+              geom_text(aes(x=reorder(channelTitle,likes/1000000), y=likes/1000000, label = title ),angle= 60,hjust=0, vjust=0, size = 4)+
+   geom_segment(aes(x =channelTitle, xend=channelTitle, y=0, yend = likes/1000000))+
+   theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Top 5 most liked videos in Spain (In Millions)',
+                   x ="Channel", y = "Likes")+
+   coord_cartesian(ylim = c(0,50), xlim=c(1,4.5))
+
+```
+
+### Dislikes
+Los videos con más dislikes, coinciden con los videos con más visitas. Vemos que vuelve a ser BlackPink el canal que contiene el video con más dislikes. En este caso la escala de dislikes está en miles y antes teníamos la escala de likes en millones. Esto nos dice que el video tiene más dislikes porque es el más visto, pero no el menos gustado ya que la proporcion de likes es muy alta.
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% group_by(country,channelTitle) %>%  summarise(max_dislikes = max(dislikes)) 
+country_stats$max_dislikes <- unlist(country_stats$max_dislikes)
+country_stats <- filter(country_stats,max_dislikes == max(max_dislikes))
+
+ ggplot(country_stats) + geom_col(aes(x= reorder(channelTitle,+max_dislikes/1000),y= max_dislikes/1000, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the maximum of Disikes per country (In Thousands)',
+                   x ="Channel", y = "Dislikes")
+```
+
+Este segundo gráfico sí que nos muestra el verdadero valor de los dislikes en porcentage, es decir, el porcentage de dislikes que tiene un video con respecto a los likes. El vídeo con más dislikes, pertenece a un canal ruso que se dedica al entretenimiento. Es curioso ver que el vÍdeo con más proporción de dislikes en Canadá, EEUU y Gran Bretaña, es un Reality Show también clasificada en la sección de entretenimiento. Los vídeos con más dislikes pasan de ser músicales a vÍdeos más arriesgados dedicados al entretenimiento.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>%  mutate(diff = (dislikes/(dislikes+likes))*100) %>% group_by(country,channelTitle) %>%  summarise(max_dislikes = max(diff, na.rm = TRUE)) 
+
+country_stats$max_dislikes <- unlist(country_stats$max_dislikes)
+country_stats <- filter(country_stats,max_dislikes == max(max_dislikes))
+
+ ggplot(country_stats) + geom_col(aes(x=reorder(channelTitle,+max_dislikes/100),y= max_dislikes/100, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+   scale_y_continuous(labels = scales::percent)+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the maximum of Dislikes per country (In Percent)',
+                   x ="Channel", y = "DisLikes")
+ 
+country_stats <- youtube_stats %>%  mutate(diff = (dislikes/(dislikes+likes))*100) %>% group_by(country,title) %>%  summarise(max_dislikes = max(diff, na.rm = TRUE))
+country_stats$max_dislikes <- unlist(country_stats$max_dislikes)
+country_stats <- filter(country_stats,max_dislikes == max(max_dislikes))
+ 
+```
+
+Los vídeos menos gustados en España son vídeos árabes de canales dedicados a hacer reportajes. También podemos encontrar uno, dedicado a los Grammys de este año y otro de Nickelodeon, un canal infantil.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% mutate(diff = (dislikes/(dislikes+likes))*100) %>% filter(country == 'Spain') %>% select(country,title,channelTitle,diff) %>% 
+  arrange(desc(diff)) %>% head(5)
+
+ ggplot(country_stats, aes(x=reorder(channelTitle,+diff), y=diff)) + geom_point(size = 3)+
+              theme_bw()+
+              geom_text(aes(x=reorder(channelTitle,+diff), y=diff, label = title ),angle= 60,hjust=0, vjust=0, size = 4)+
+   geom_segment(aes(x =channelTitle, xend=channelTitle, y=0, yend = diff))+
+   theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Top 5 most Dislike videos in Spain (In Millions)',
+                   x ="Channel", y = "Dislikes")+
+   coord_cartesian(ylim = c(0,200), xlim=c(1,4.5))
+
+```
+
+
+### Comentarios
+Para ver que videos y canales causan mas impresión, vamos a ver el número de comentarios de los videos por países. Volvemos a tener a BlackPink como el canal con el vídeo que mas revuelo ha causado en el trending. Y en Rusia curiosamente, ha sido un vídeo de los Grammys el que más sensaciones ha producido.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% group_by(country,channelTitle) %>%  summarise(max_comments = max(comment_count)) 
+country_stats$max_likes <- unlist(country_stats$max_comments)
+country_stats <- filter(country_stats,max_comments == max(max_comments))
+
+ ggplot(country_stats) + geom_col(aes(x= reorder(channelTitle,+max_comments/1000),y= max_comments/1000, fill = country), position = 'dodge')+
+   scale_fill_brewer(palette = "Set1", name = 'Country')+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Channel with the maximum of Comments per country (In Thousands)',
+                   x ="Channel", y = "Comments")
+```
+
+
+Los vídeos más comentados en España son prácticamente los mismos que los vídeos más gustados. Podemos destacar una vez más los dos grupos surcoreanos y MrBeast. Como sorpresa tenemos un nuevo vídeo de los Grammys.
+
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+country_stats <- youtube_stats %>% filter(country == 'Spain') %>% select(country,title,channelTitle,comment_count) %>% 
+  arrange(desc(comment_count)) %>% head(5)
+
+ ggplot(country_stats, aes(x=reorder(channelTitle,comment_count/100000), y=comment_count/100000)) + 
+              geom_point(size = 3)+
+              theme_bw()+
+              geom_text(aes(x=reorder(channelTitle,comment_count/100000), y=comment_count/100000, label = title ),
+                        angle= 60,hjust=0, vjust=0, size = 4)+
+              geom_segment(aes(x =channelTitle, xend=channelTitle, y=0, yend = comment_count/100000))+
+              theme(line =element_line(color = 'black'),
+                    axis.title = element_text(size = rel(1.5)),
+                    panel.background = element_rect(fill='white'),
+                    panel.grid.major.y = element_line(colour = 'black', linetype = 'dotted' ),
+                    axis.line = element_line(colour = 'black'))+
+              labs(title='Top 5 most commented videos in Spain (In 100.000)',
+                   x ="Channel", y = "Comments")+
+              coord_cartesian(ylim = c(0,50), xlim=c(1,4.5))
+
+```
+
+
+
+## Conclusiones
+Antes los canales más vistos eran los dedicados a videojuegos. Te podías meter a cualquier hora y en el top siempre iba a haber videos sobre videojuegos. Ahora, todas esas personas dedicadas al mundillo del gaming, se han trasladado a a Twitch, ya que muchos de ellos se dieron cuenta que ganaban más haciendo estos vídeos en directo y ganando a través de donaciones y suscripciones y no del partner de Youtube (además youtube ponía muchas restricciones de contenido). Ahora en Youtube detacan aquellos vídeos que necesitan ser previamente editados para luego ser visionados. En este tipo de videos hemos visto que sobre todo están los dedicados a la música. Es curioso ver como ahora la tendencia de vídeos musicales no pertenece tanto a los países occidentales sino que ahora los orientales han cogido mucho más peso. Ahora los canales musicales que más sensación causan en todo el mundo son los surcoreanos con el nuevo género concido como K-pop, que incluye diversos géneros como pop, hip hop y rock en coreano. No solo tienen un gran nicho en su continente sino que es muy visto en Europa y América.
+
+LOs vídeos menos gustados siempre pertenecen a la categoría de entretenimiento, donde se puede encontrar vídeos de crítica, reportajes, realitys, etc. Estos suelen tener un contenido más arriesgado que muchas veces atraen al público por curiosidad pero luego este público no está de acuerdo con el contenido y la opinión/crítica que genera. 
+
+Los rusos utilizan mucho menos la plataforma, siempre se encuentran a la cola de los videos más vistos y gustados. Como la política siempre está a la orden del día y controla todo, muchos vídeos rusos son censurados cuando se suben a Youtube y por eso, los rusos prefieren no utiizar la plataforma americana. https://www.lavanguardia.com/tecnologia/20201128/49766590869/rusia-youtube-roskomnadzor-kremlim.html
+
+
+
