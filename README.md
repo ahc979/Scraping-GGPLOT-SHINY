@@ -7,6 +7,6 @@ En este proyecto desarrollé un programa de scraping para descargarme datos de Y
 - El código de la visualización dinámica de Twitch lo encontraréis en "shiny_code". Si queréis ver los resultados de Twitch deberéis descargar el código y los datos y ejecutarlo en local.
 - Podéis encontrar los datos en la carpeta de "Data".
 
-Hay que tener en cuenta que para este proyecto se utilizaron/scrapearon pocas observaciones ya que era para una finalidad didáctica.
+Hay que tener en cuenta que para este proyecto se utilizaron/scrapearon pocas observaciones ya que era para una finalidad didáctica. El centro daba libertad para elegir el tema a desarrollar. Me pareció interesante hacer una comparativa de la evolución de ambas plataformas para determinar si en un futuro Twitch abarcará el mercado que Youtube construyó en su día.
 
 
